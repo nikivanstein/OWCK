@@ -10,8 +10,8 @@ from sklearn.metrics import r2_score
 
 from deap import benchmarks
 
-from OWCKv1 import OWCK
-from OWCKv1.utils import get_design_sites
+from OWCK import OWCK
+from OWCK.utils import get_design_sites
 
 #test function to model
 def ackley_arg0(sol):
@@ -24,10 +24,11 @@ def ackley_arg0(sol):
     return Z
 
 
-def runtest():
+def runtest(cluster_method='k-mean'):
     
     d = lambda:0 
-    n_sample = 5000
+    n_sample = 1000
+    n_update_sample = 1000
     dim = 2
     n_cluster = 8
     
@@ -35,15 +36,21 @@ def runtest():
     x_ub = np.array([29.9] * dim)
     
     X = get_design_sites(dim, n_sample, x_lb, x_ub, 'lhs')
+
     d.data = X
     d.target = ackley_arg0(d.data.T)
+
+    X_update = get_design_sites(dim, n_update_sample, x_lb, x_ub, 'lhs')
+    Y_update = ackley_arg0(X_update.T)
 
 	#STANDARDIZE DATA
     std_scaler = StandardScaler()
     d.data = std_scaler.fit_transform(d.data ,y=d.target)
+    X_update = std_scaler.transform(X_update,y=Y_update)
     
     std_scaler = StandardScaler(with_std=False)
     d.target = std_scaler.fit_transform(d.target)
+    Y_update = std_scaler.transform(Y_update)
 
     seed_times = 5
     
@@ -66,12 +73,14 @@ def runtest():
 
         time_run_start = time.time()
 
-        owck_model = OWCK(regr='constant', corr='squared_exponential', 
+        owck_model = OWCK(regr='constant', corr='squared_exponential', cluster_method=cluster_method, overlap=0.1,
                           theta0=theta0, thetaL=thetaL, thetaU=thetaU, 
                           n_cluster=n_cluster, nugget=1e-8, verbose=False,
                           is_parallel=True)
 
         owck_model.fit(d.data[train_index], d.target[train_index])
+        #update the model with additional data (just testing)
+        owck_model.updateModel(X_update,Y_update)
 
         time_run = time.time() - time_run_start
         sys.stderr.write("--- Fitting finished in "+`time_run`+" ---\n" )
@@ -83,6 +92,7 @@ def runtest():
 
         predictions, variance = owck_model.predict(d.data[test_index])
         score = r2_score(d.target[test_index], predictions)
-        print "R2 score:", score
+        print cluster_method,"R2 score:", score
 
-runtest()
+for method in ['tree','k-mean', 'GMM', 'fuzzy-c-mean', 'flame', 'random']:
+    runtest(method)

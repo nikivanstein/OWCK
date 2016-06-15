@@ -1,0 +1,11 @@
+scikit-learn
+mpi4py
+scikit-fuzzy
+pandas
+numpy
+
+[dev]
+check-manifest
+
+[test]
+coverage

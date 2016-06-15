@@ -7,7 +7,6 @@ Created on Mon Mar 30 15:33:49 2015
 
 
 from mpi4py import MPI
-from OWCKv1 import OWCK
 
 comm = MPI.Comm.Get_parent()
 comm_self = MPI.COMM_WORLD
@@ -19,7 +18,7 @@ index, training_set = data
 
 while True:  
     try:
-        super(OWCK, model).fit(*training_set)
+        model.fit(*training_set)
         break
     except ValueError:
         model.nugget *= 10  # TODO: need to discuss this simple fix!

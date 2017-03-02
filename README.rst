@@ -25,8 +25,8 @@ n_cluster : int, optional
 cluster_method : string, optional
     The clustering algorithm used to partition the data set.
     Built-in clustering algorithm are:
-        'k-mean', 'GMM', 'fuzzy-c-mean', 'flame', 'random', 'tree'
-        Note that GMM, fuzzy-c-mean and flame are fuzzy clustering algorithms 
+        'k-mean', 'GMM', 'fuzzy-c-mean', 'random', 'tree'
+        Note that GMM, fuzzy-c-mean are fuzzy clustering algorithms 
         With these algorithms you can set the overlap you desire.
         tree is a regression tree clustering-based approach
 overlap : float, optional

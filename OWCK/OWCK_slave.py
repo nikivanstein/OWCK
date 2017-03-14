@@ -6,15 +6,21 @@ Created on Mon Mar 30 15:33:49 2015
 """
 
 
+from .gpr import GaussianProcess
+
+
 from mpi4py import MPI
 
+
 comm = MPI.Comm.Get_parent()
-comm_self = MPI.COMM_WORLD
+
+data = comm.scatter(None, root=0)
+index, training_set = data
 
 model = comm.scatter(None, root=0)
-data = comm.scatter(None, root=0)
 
-index, training_set = data
+
+
 
 while True:  
     try:
@@ -35,3 +41,4 @@ fitted = {
 comm.gather(fitted, root=0)
 
 comm.Disconnect()
+

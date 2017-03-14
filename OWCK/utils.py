@@ -8,9 +8,9 @@ Created on Thu Nov 12 16:19:28 2015
 import time, os
 import numpy as np
 from numpy import pi, log, atleast_2d, size, mod
-from pyDOE import lhs
-from ghalton import Halton
-from sobol import i4_sobol
+#from pyDOE import lhs
+#from ghalton import Halton
+#from sobol import i4_sobol
 
 ## SMSE measurement
 # test_y is the target, pred_y the predicted target, both 1D arrays of same length
@@ -43,31 +43,31 @@ def MSLL(train_y,test_y,pred_y,variances):
 	return msll
     
 
-# Obtain the initial design locations
-def get_design_sites(dim, n_sample, x_lb, x_ub, sampling_method='lhs'):
+# # Obtain the initial design locations
+# def get_design_sites(dim, n_sample, x_lb, x_ub, sampling_method='lhs'):
     
-    x_lb = atleast_2d(x_lb)
-    x_ub = atleast_2d(x_ub)
+#     x_lb = atleast_2d(x_lb)
+#     x_ub = atleast_2d(x_ub)
     
-    x_lb = x_lb.T if size(x_lb, 0) != 1 else x_lb
-    x_ub = x_ub.T if size(x_ub, 0) != 1 else x_ub
+#     x_lb = x_lb.T if size(x_lb, 0) != 1 else x_lb
+#     x_ub = x_ub.T if size(x_ub, 0) != 1 else x_ub
     
-    if sampling_method == 'lhs':
-        # Latin Hyper Cube Sampling: Get evenly distributed sampling in R^dim
-        samples = lhs(dim, samples=n_sample) * (x_ub - x_lb) + x_lb
+#     if sampling_method == 'lhs':
+#         # Latin Hyper Cube Sampling: Get evenly distributed sampling in R^dim
+#         samples = lhs(dim, samples=n_sample) * (x_ub - x_lb) + x_lb
         
-    elif sampling_method == 'uniform':
-        samples = np.random.rand(n_sample, dim) * (x_ub - x_lb) + x_lb
+#     elif sampling_method == 'uniform':
+#         samples = np.random.rand(n_sample, dim) * (x_ub - x_lb) + x_lb
         
-    elif sampling_method == 'sobol':
-        seed = mod(int(time.time()) + os.getpid(), int(1e6))
-        samples = np.zeros((n_sample, dim))
-        for i in range(n_sample):
-            samples[i, :], seed = i4_sobol(dim, seed)
-        samples = samples * (x_ub - x_lb) + x_lb
+#     elif sampling_method == 'sobol':
+#         seed = mod(int(time.time()) + os.getpid(), int(1e6))
+#         samples = np.zeros((n_sample, dim))
+#         for i in range(n_sample):
+#             samples[i, :], seed = i4_sobol(dim, seed)
+#         samples = samples * (x_ub - x_lb) + x_lb
         
-    elif sampling_method == 'halton':
-        sequencer = Halton(dim)
-        samples = sequencer.get(n_sample) * (x_ub - x_lb) + x_lb
+#     elif sampling_method == 'halton':
+#         sequencer = Halton(dim)
+#         samples = sequencer.get(n_sample) * (x_ub - x_lb) + x_lb
         
-    return samples
+#     return samples

@@ -59,9 +59,9 @@ def runtest(cluster_method='k-mean'):
     
     d = lambda:0 
     n_sample = 1000
-    n_update_sample = 10
+    n_update_sample = 500
     dim = 5
-    n_cluster = 8
+    n_cluster = 10
     
     x_lb = np.array([-29.9] * dim)
     x_ub = np.array([29.9] * dim)

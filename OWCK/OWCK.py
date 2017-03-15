@@ -101,6 +101,12 @@ class OWCK(GaussianProcess_extra):
                  optimizer=optimizer, random_start=random_start, 
                  normalize=normalize, nugget=nugget, nugget_estim=nugget_estim,
                  random_state=random_state)
+
+        self.empty_model = GaussianProcess_extra(regr=regr, corr=corr, 
+                 beta0=beta0, verbose=verbose, 
+                 theta0=theta0, thetaL=thetaL, thetaU=thetaU, sigma2=sigma2,
+                 optimizer=optimizer, random_start=random_start, normalize=normalize,
+                 nugget=nugget, nugget_estim=nugget_estim, random_state=random_state)
         
         self.n_cluster = n_cluster
         self.is_parallel = is_parallel
@@ -501,12 +507,90 @@ class OWCK(GaussianProcess_extra):
             #self.y = np.append(self.y, newY)
 
             #check the size of the new data
-            if len(self.X) > (self.sizeX + self.minsamples*2) or re_estimate_all:
-                #in this case just rebuild all models
-                #since number of models will change
+            if re_estimate_all:
+                #in this case build additional models
                 if self.verbose:
                     print("refitting all models")
                 self.__fit(self.X, self.y)
+            elif len(self.X) > (self.sizeX + self.minsamples*2.0):
+                #in this case build additional models if needed
+                if self.verbose:
+                    print("refitting new models")
+                    print("Current tree")
+                    print(self.clusterer)
+                rebuildmodels = np.unique(self.clusterer.apply(newX))
+                rebuildmodelstemp = []
+                rebuild_index = 0;
+                self.cluster_label = self.clusterer.apply(self.X)
+                new_leaf_labels = []
+                for i in rebuildmodels:
+                    leafindex = np.where(self.leaf_labels==i)[0][0]
+
+                    idx = self.cluster_label == i
+                    #check size of model
+                    if (len(idx) > self.minsamples*2.0):
+                        if self.verbose:
+                            print("Trying to split leaf node",i)
+                        #split the leaf and fit 2 additional models
+                        self.clusterer.split_terminal(i,self.X[idx, :], self.y[idx])
+                        labels = self.clusterer.apply(self.X)
+                        new_labels = np.unique(labels)
+                        self.n_cluster = len(new_labels)
+                        self.cluster_label = labels
+                        delete_old = False
+                        for n in new_labels:
+                            if n not in self.leaf_labels:
+                                delete_old = True
+                                new_leafindex = np.where(new_labels==n)[0][0]
+                                if self.verbose:
+                                    print("New model with id",new_leafindex)
+                                    print self.leaf_labels
+                                new_model = deepcopy(self.empty_model)
+                                self.models.append(new_model)
+                                self.leaf_labels = np.append(self.leaf_labels,n)
+                                #rebuildmodelstemp.append(new_leafindex)
+                                new_leaf_labels.append(n)
+                        if delete_old:
+                            self.leaf_labels = np.delete(self.leaf_labels, leafindex)
+                            del(self.models[leafindex])
+                            if self.verbose:
+                                print("New tree")
+                                print(self.clusterer)
+                                print self.leaf_labels
+                        self.cluster_label = labels
+                    else:
+                        #just refit this model
+                        #rebuildmodelstemp.append(leafindex)
+                        new_leaf_labels.append(i)
+
+
+                for n in new_leaf_labels:
+                    rebuildmodelstemp.append(np.where(self.leaf_labels==n)[0][0])
+
+
+                rebuildmodels = np.unique(np.array(rebuildmodelstemp,dtype=int))
+                labels = self.clusterer.apply(self.X)
+                self.cluster_label = labels
+                self.leaf_labels = np.unique(labels)
+
+                for i in rebuildmodels:
+                    
+                    idx = self.cluster_label == self.leaf_labels[i]
+                    if self.verbose:
+                        print("updating model on position "+str(i)+" attached to leaf id "+str(self.leaf_labels[i])+" and "+str(sum(idx))+" data points")
+                    model = self.models[i]
+                    while True:  
+                        try:
+                            # super is needed here to call the 'fit' function in the 
+                            # parent class (GaussianProcess)
+                            
+                            model.fit(self.X[idx, :], self.y[idx])
+                            break
+                        except ValueError:
+                            if self.verbose:
+                                print('Current nugget setting is too small!' +\
+                                    ' It will be tuned up automatically')
+                            model.nugget *= 10
             else:
                 rebuildmodels = np.unique(self.clusterer.apply(newX))
                 rebuildmodelstemp = []

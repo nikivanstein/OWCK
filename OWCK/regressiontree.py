@@ -19,6 +19,7 @@ class IncrementalRegressionTree:
 		self.min_leaf_split = min_leaf_split
 		self.max_depth = max_depth
 		self.min_samples_leaf = min_samples_leaf
+		print("min samples is "+str(self.min_samples_leaf))
 		self.depth = 1
 		self.root = None
 		self.leaf_id = 0
@@ -26,7 +27,7 @@ class IncrementalRegressionTree:
 
 
 	def mse(self, groups):
-		mse = 0
+		mse = 0.0
 		for group in groups:
 			size = len(group[0]) #left or right
 			if size == 0:
@@ -82,22 +83,12 @@ class IncrementalRegressionTree:
 	# Create a terminal node value
 	def to_terminal(self,data):
 		self.leaf_id += 1
-		outcomes = data[1]
-		return {'id':self.leaf_id, 'val':max(set(outcomes), key=outcomes.count)} #might want to add 'data':data,
+		return {'id':self.leaf_id, 'val':np.mean(data[1])} #might want to add 'data':data,
 
 	# Create child splits for a node or make terminal
 	def split(self,node,parent=None,direction="",parent_group=None):
 		left, right = node['groups']
 		del(node['groups'])
-
-		#check if both new nodes have enough samples to make a leaf.
-		if (parent!=None and len(left[1]) < self.min_samples_leaf or len(right[1]) < self.min_samples_leaf ):
-			#turn this node into a leaf node.
-			if (direction=="left"):
-				parent["left"] = self.to_terminal(parent_group)
-			else:
-				parent["right"] = self.to_terminal(parent_group)
-			return
 
 
 		# check for a no split
@@ -117,16 +108,24 @@ class IncrementalRegressionTree:
 		if len(left[0]) <= self.min_leaf_split:
 			node['left'] = self.to_terminal(left)
 		else:
-			node['left'] = self.get_split(left[0],left[1])
-			self.depth+=1
-			self.split(node['left'],node,"left",left)
+			temp_node = self.get_split(left[0],left[1])
+			if (len(temp_node['groups'][0][1])>=self.min_samples_leaf and len(temp_node['groups'][1][1]) >= self.min_samples_leaf):
+				node['left'] = temp_node
+				self.depth+=1
+				self.split(node['left'],node,"left",left)
+			else:
+				node['left'] = self.to_terminal(left)
 		# process right child
 		if len(right) <= self.min_leaf_split:
 			node['right'] = self.to_terminal(right)
 		else:
-			node['right'] = self.get_split(right[0],right[1])
-			self.depth+=1
-			self.split(node['right'],node,"right",right)
+			temp_node = self.get_split(right[0],right[1])
+			if (len(temp_node['groups'][0][1])>=self.min_samples_leaf and len(temp_node['groups'][1][1]) >= self.min_samples_leaf):
+				node['right'] = temp_node
+				self.depth+=1
+				self.split(node['right'],node,"right",right)
+			else:
+				node['right'] = self.to_terminal(right)
 
 	# Build a decision tree
 	def fit(self,X,y):
@@ -208,8 +207,12 @@ class IncrementalRegressionTree:
 	def split_terminal(self, terminal_id, new_x, new_y):
 		#first find the specific terminal node
 		parent,direction = self.__find_terminal_parent(self.root, terminal_id)
-		parent[direction] = self.get_split(new_x,new_y)
-		self.split(parent[direction])
+		temp_node = self.get_split(new_x,new_y)
+		if (len(temp_node['groups'][0][1])>=self.min_samples_leaf and len(temp_node['groups'][1][1]) >= self.min_samples_leaf):
+			parent[direction] = temp_node
+			print(len(temp_node['groups'][0][1]),len(temp_node['groups'][1][1]))
+			self.split(parent[direction], parent,direction, (new_x,new_y))
+		return
 
 	def __find_terminal_parent(self,node, node_id):
 		if isinstance(node, dict): #should be always
@@ -224,6 +227,8 @@ class IncrementalRegressionTree:
 				f_node, direction = self.__find_terminal_parent(node['left'], node_id)
 				if (f_node == None):
 					f_node, direction = self.__find_terminal_parent(node['right'], node_id)
+		else:
+			return None,None
 		return f_node, direction
 
 if __name__ == "__main__":

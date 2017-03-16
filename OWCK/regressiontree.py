@@ -13,15 +13,20 @@ class IncrementalRegressionTree:
 		min_leaf_split = minimum number of samples to use for splitting a node, default is one
 		max_depth = maximum depth of the tree. None is infinite.
 		min_samples_leaf
+		criterion = ["mse","median","gini"]
 	"""
 
-	def __init__(self, min_leaf_split=1,max_depth=None, min_samples_leaf=1, regression=True):
+	def __init__(self, min_leaf_split=1,max_depth=None, min_samples_leaf=1, regression=True, criterion="mse", verbose=False):
 		self.min_leaf_split = min_leaf_split
 		self.max_depth = max_depth
 		self.min_samples_leaf = min_samples_leaf
-		print("min samples is "+str(self.min_samples_leaf))
+		self.node_count = 0
 		self.depth = 1
-		self.root = None
+		self.tree_ = None
+		self.verbose = verbose
+		self.criterion= criterion
+		if self.verbose:
+			print("min samples is "+str(self.min_samples_leaf))
 		self.leaf_id = 0
 		self.regression = regression
 
@@ -47,6 +52,16 @@ class IncrementalRegressionTree:
 				gini += (proportion * (1.0 - proportion))
 		return gini
 
+	# Calculate the Gini index for a split dataset
+	def median_split(self,groups):
+		maxsize = 0.0
+		for group in groups:
+			size = len(group[0]) #left or right
+			if size == 0:
+				continue
+			maxsize *= size
+		return maxsize
+
 	# Split a dataset based on an attribute and an attribute value
 	def test_split(self,index, value, X, y):
 		left, right = list(), list()
@@ -68,14 +83,17 @@ class IncrementalRegressionTree:
 		for index in range(len(X[0])):
 			for row in X:
 				groups = self.test_split(index, row[index], X, y)
-				if (self.regression):
+				if (self.criterion == "mse"):
 					n_score = self.mse(groups)
-				else:
+				elif(self.criterion=="gini"):
 					n_score = self.gini_index(groups,class_values)
+				elif(self.criterion=="median"):
+					n_score = self.median_split(groups)
+				#else error
 				if n_score < b_score:
 					b_index, b_value, b_score, b_groups = index, row[index], n_score, groups
 
-		return {'index':b_index, 'value':b_value, 'groups':b_groups}
+		return {'index':b_index, 'value':b_value, 'groups':b_groups,'node_id':self.node_count}
 
 
 	
@@ -83,7 +101,8 @@ class IncrementalRegressionTree:
 	# Create a terminal node value
 	def to_terminal(self,data):
 		self.leaf_id += 1
-		return {'id':self.leaf_id, 'val':np.mean(data[1])} #might want to add 'data':data,
+		self.node_count += 1
+		return {'id':self.leaf_id, 'node_id':self.node_count, 'val':np.mean(data[1])} #might want to add 'data':data,
 
 	# Create child splits for a node or make terminal
 	def split(self,node,parent=None,direction="",parent_group=None):
@@ -112,6 +131,7 @@ class IncrementalRegressionTree:
 			if (len(temp_node['groups'][0][1])>=self.min_samples_leaf and len(temp_node['groups'][1][1]) >= self.min_samples_leaf):
 				node['left'] = temp_node
 				self.depth+=1
+				self.node_count+=1
 				self.split(node['left'],node,"left",left)
 			else:
 				node['left'] = self.to_terminal(left)
@@ -123,6 +143,7 @@ class IncrementalRegressionTree:
 			if (len(temp_node['groups'][0][1])>=self.min_samples_leaf and len(temp_node['groups'][1][1]) >= self.min_samples_leaf):
 				node['right'] = temp_node
 				self.depth+=1
+				self.node_count+=1
 				self.split(node['right'],node,"right",right)
 			else:
 				node['right'] = self.to_terminal(right)
@@ -134,43 +155,43 @@ class IncrementalRegressionTree:
 		if (self.max_depth==None):
 			self.max_depth = len(y)
 		self.leaf_labels = np.zeros(len(y))
-		self.root = self.get_split(X,y)
-		self.split(self.root)
-		return self.root
+		self.tree_ = self.get_split(X,y)
+		self.split(self.tree_)
+		return self.tree_
 
 	def getRoot():
-		return self.root
+		return self.tree_
 
 	def __str__(self):
-		return self.print_tree_string(self.root)
+		return self.printtree__string(self.tree_)
 
 	def __repr__(self):
 		return "IncrementalRegressionTree"
 
 	# Print a decision tree
-	def print_tree_string(self,node, depth=0):
+	def printtree__string(self,node, depth=0):
 		str = ""
 		if isinstance(node, dict): #always
 			if ('val' in node.keys()):
 				str +=('|%s[%s, id=%s]' % ((depth*' ', node['val'], node['id'])))
 			else:
 				str += ('|%s[X%d < %.3f]' % ((depth*'-', (node['index']+1), node['value'])))+"\n"
-				str += self.print_tree_string(node['left'], depth+1)+"\n"
-				str += self.print_tree_string(node['right'], depth+1)
+				str += self.printtree__string(node['left'], depth+1)+"\n"
+				str += self.printtree__string(node['right'], depth+1)
 			
 		return str
 
-	def print_tree(self,node, depth=0):
-		print(self.print_tree_string( node, depth))
+	def printtree_(self,node, depth=0):
+		print(self.printtree__string( node, depth))
 
 	# Make a prediction with a decision tree
 	def predict(self, x):
 		"Returns the prediction of the terminal node for x"
 		x = np.array(x)
 		if len(x.shape) == 1:
-			return self._predict_rec(self.root,x)
+			return self._predict_rec(self.tree_,x)
 		else:
-			return [self._predict_rec(self.root, x1) for x1 in x]
+			return [self._predict_rec(self.tree_, x1) for x1 in x]
 
 	def _predict_rec(self,node, row):
 		if row[node['index']] < node['value']:
@@ -188,9 +209,9 @@ class IncrementalRegressionTree:
 		"Returns the leaf id of the terminal node for x"
 		x = np.array(x)
 		if len(x.shape) == 1:
-			return self._apply_rec(self.root,x)
+			return self._apply_rec(self.tree_,x)
 		else:
-			return [self._apply_rec(self.root, x1) for x1 in x]
+			return [self._apply_rec(self.tree_, x1) for x1 in x]
 
 	def _apply_rec(self,node, row):
 		if row[node['index']] < node['value']:
@@ -206,13 +227,14 @@ class IncrementalRegressionTree:
 
 	def split_terminal(self, terminal_id, new_x, new_y):
 		#first find the specific terminal node
-		parent,direction = self.__find_terminal_parent(self.root, terminal_id)
+		parent,direction = self.__find_terminal_parent(self.tree_, terminal_id)
 		temp_node = self.get_split(new_x,new_y)
 		if (len(temp_node['groups'][0][1])>=self.min_samples_leaf and len(temp_node['groups'][1][1]) >= self.min_samples_leaf):
 			parent[direction] = temp_node
-			print(len(temp_node['groups'][0][1]),len(temp_node['groups'][1][1]))
+			#print(len(temp_node['groups'][0][1]),len(temp_node['groups'][1][1]))
 			self.split(parent[direction], parent,direction, (new_x,new_y))
-		return
+			return True
+		return False
 
 	def __find_terminal_parent(self,node, node_id):
 		if isinstance(node, dict): #should be always

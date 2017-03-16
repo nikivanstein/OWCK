@@ -516,8 +516,8 @@ class OWCK(GaussianProcess_extra):
                 #in this case build additional models if needed
                 if self.verbose:
                     print("refitting new models")
-                    print("Current tree")
-                    print(self.clusterer)
+                    #print("Current tree")
+                    #print(self.clusterer)
                 rebuildmodels = np.unique(self.clusterer.apply(newX))
                 rebuildmodelstemp = []
                 rebuild_index = 0;
@@ -532,11 +532,11 @@ class OWCK(GaussianProcess_extra):
                         if self.verbose:
                             print("Trying to split leaf node",i)
                         #split the leaf and fit 2 additional models
-                        self.clusterer.split_terminal(i,self.X[idx, :], self.y[idx])
-                        labels = self.clusterer.apply(self.X)
-                        new_labels = np.unique(labels)
-                        self.n_cluster = len(new_labels)
-                        self.cluster_label = labels
+                        new_labels = []
+                        if self.clusterer.split_terminal(i,self.X[idx, :], self.y[idx]):
+                            self.cluster_label = self.clusterer.apply(self.X)
+                            new_labels = np.unique(self.cluster_label)
+                            self.n_cluster = len(new_labels)
                         delete_old = False
                         for n in new_labels:
                             if n not in self.leaf_labels:
@@ -544,7 +544,7 @@ class OWCK(GaussianProcess_extra):
                                 new_leafindex = np.where(new_labels==n)[0][0]
                                 if self.verbose:
                                     print("New model with id",new_leafindex)
-                                    print self.leaf_labels
+                                    #print self.leaf_labels
                                 new_model = deepcopy(self.empty_model)
                                 self.models.append(new_model)
                                 self.leaf_labels = np.append(self.leaf_labels,n)
@@ -553,11 +553,8 @@ class OWCK(GaussianProcess_extra):
                         if delete_old:
                             self.leaf_labels = np.delete(self.leaf_labels, leafindex)
                             del(self.models[leafindex])
-                            if self.verbose:
-                                print("New tree")
-                                print(self.clusterer)
-                                print self.leaf_labels
-                        self.cluster_label = labels
+                        else:
+                            new_leaf_labels.append(i) #update current model
                     else:
                         #just refit this model
                         #rebuildmodelstemp.append(leafindex)

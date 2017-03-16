@@ -59,7 +59,7 @@ def runtest(cluster_method='k-mean'):
     
     d = lambda:0 
     n_sample = 1000
-    n_update_sample = 500
+    n_update_sample = 10
     dim = 5
     n_cluster = 10
     
@@ -71,8 +71,6 @@ def runtest(cluster_method='k-mean'):
     d.data = X
     d.target = ackley_arg0(d.data.T)
 
-    X_update = get_design_sites(dim, n_update_sample, x_lb, x_ub, 'lhs')
-    Y_update = ackley_arg0(X_update.T)
 
 	#STANDARDIZE DATA
     #std_scaler = StandardScaler()
@@ -115,7 +113,10 @@ def runtest(cluster_method='k-mean'):
             owck_model.fit(d.data[train_index], d.target[train_index])
             #update the model with additional data (just testing)
 
-            owck_model.fit(X_update,Y_update)
+            for i in range(10):
+                X_update = get_design_sites(dim, n_update_sample, x_lb, x_ub, 'uniform')
+                Y_update = ackley_arg0(X_update.T)
+                owck_model.fit(X_update,Y_update)
 
         
         time_run = time.time() - time_run_start

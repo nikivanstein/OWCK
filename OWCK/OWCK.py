@@ -247,74 +247,8 @@ class OWCK(GaussianProcess_extra):
             pool.close()
             pool.join()
             self.models = models
-            
-            #print models
-            #
-            '''
-            raise Exception('Parallel mode has been disabled for now.')
-            # spawning processes...
-            #os.chdir('/home/wangronin')
-            comm = MPI.COMM_SELF.Spawn(sys.executable, 
-                                       args=['-m', 'owck.OWCK_slave'],
-                                       maxprocs=self.n_cluster)
-            
-            # prepare the training set for each GP model    
-                
-            if (self.cluster_method=='k-mean' or self.cluster_method=='random'):
-                idx = [self.cluster_label == i for i in range(self.n_cluster)]
-            elif (self.cluster_method=='tree'):
-                idx = [self.cluster_label == self.leaf_labels[i] for i in range(self.n_cluster)]
-                if (verbose):
-                    print "len cluster",len(idx)
-            else:
-                targetMemberSize = (len(self.X) / self.n_cluster)*(1.0+self.overlap)
-                idx = []
-
-                minindex = np.argmin(self.y)
-                maxindex = np.argmax(self.y)
-                for i in range(self.n_cluster):
-                    idx_temp = np.argsort(self.cluster_labels_proba[:,i])[-targetMemberSize:]
-                    if (minindex not in idx_temp):
-                        idx_temp = np.hstack((idx_temp,[minindex]))
-                    if (maxindex not in idx_temp):
-                        idx_temp = np.hstack((idx_temp,[maxindex]))
-                    idx.append(idx_temp)
-
-
-            training_set = [(X[index, :], y[index]) for index in idx]
-            
-            # scatter the models and data
-            comm.scatter([(k, training_set[k]) \
-                for k in range(self.n_cluster)], root=MPI.ROOT)
-            comm.scatter(self.models, root=MPI.ROOT)
-           
-            
-            # Synchronization while the slave process are performing 
-            # heavy computations...
-            comm.Barrier()
-                
-            # Gether the fitted model from the childrenn process
-            # Note that 'None' is only valid in master-slave working mode
-            results = comm.gather(None, root=MPI.ROOT)
-            
-            # keep the fitted model align with their cluster
-            fitted = DataFrame([[d['index'], d['model']] \
-                for d in results], columns=['index', 'model'])
-            fitted.sort('index', ascending=[True], inplace=True)
-            
-            self.models[:] = fitted['model']
-                
-            # free all slave processes
-            comm.Disconnect()
-            '''
-        
         else:                    # sequential model fitting
-            # get min and max value indexes such that no cluster gets 
-            # only one value instances.
-#            minindex = np.argmin(self.training_y)
-#            maxindex = np.argmax(self.training_y)
             for i in range(self.n_cluster):                    
-               
                 if (self.cluster_method=='k-mean' or self.cluster_method=='random'):
                     idx = self.cluster_label == i
                 elif (self.cluster_method=='tree'):
@@ -333,9 +267,6 @@ class OWCK(GaussianProcess_extra):
                         idx = np.hstack((idx,[maxindex]))
 
                 model = self.models[i]
-                # TODO: discuss this will introduce overlapping samples
-#                idx[minindex] = True
-#                idx[maxindex] = True
                 
                 # dirty fix so that low nugget errors will increase the
                 # nugget till the model fits
@@ -360,7 +291,7 @@ class OWCK(GaussianProcess_extra):
                             print('Current nugget setting is too small!' +\
                                 ' It will be tuned up automatically')
                         #pdb.set_trace()
-                        model.noise_var *= 10
+                        model.nugget *= 10
     
     def gradient(self, x):
         """

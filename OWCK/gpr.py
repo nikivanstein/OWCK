@@ -1307,7 +1307,7 @@ class GaussianProcess(BaseEstimator, RegressorMixin):
                         
             llf_opt = np.inf
             dim = self.thetaL.shape[1]
-            eval_budget = 500*dim
+            eval_budget = 100*dim
             c = 0
             
             # L-BFGS-B algorithm with restarts

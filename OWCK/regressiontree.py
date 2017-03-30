@@ -13,7 +13,7 @@ class IncrementalRegressionTree:
 		min_leaf_split = minimum number of samples to use for splitting a node, default is one
 		max_depth = maximum depth of the tree. None is infinite.
 		min_samples_leaf
-		criterion = ["mse","median","gini"]
+		criterion = ["mse","median","gini","mae"]
 	"""
 
 	def __init__(self, min_leaf_split=1,max_depth=None, min_samples_leaf=1, regression=True, criterion="mse", verbose=False):
@@ -31,6 +31,7 @@ class IncrementalRegressionTree:
 		self.regression = regression
 
 
+
 	def mse(self, groups):
 		mse = 0.0
 		for group in groups:
@@ -39,6 +40,24 @@ class IncrementalRegressionTree:
 				continue
 			mse += np.sum((group[1] - np.mean(group[1])) ** 2)
 		return mse
+
+	def mae(self, groups):
+		mae = 0.0
+		for group in groups:
+			size = len(group[0]) #left or right
+			if size == 0:
+				continue
+			mae += np.sum(np.abs(group[1] - np.mean(group[1])))
+		return mae
+
+	# Calculate the Gini index for a split dataset
+	def median_split(self,groups):
+		sizes = []
+		for group in groups:
+			size = len(group[0]) #left or right
+			sizes.append(size)
+		
+		return 1. - float(min(sizes))/float(max(sizes))
 
 	# Calculate the Gini index for a split dataset
 	def gini_index(self,groups, class_values):
@@ -53,14 +72,18 @@ class IncrementalRegressionTree:
 		return gini
 
 	# Calculate the Gini index for a split dataset
-	def median_split(self,groups):
-		maxsize = 0.0
+	def balanced_mse(self,groups):
+		sizes = []
+		mse = 0.0
 		for group in groups:
 			size = len(group[0]) #left or right
+			sizes.append(size)
 			if size == 0:
 				continue
-			maxsize *= size
-		return maxsize
+			mse += np.sum((group[1] - np.mean(group[1])) ** 2)
+		balance = 2. - float(min(sizes)) / float(max(sizes))
+
+		return balance * mse
 
 	# Split a dataset based on an attribute and an attribute value
 	def test_split(self,index, value, X, y):
@@ -82,13 +105,19 @@ class IncrementalRegressionTree:
 		b_index, b_value, b_score, b_groups = 99999, float("inf"), float("inf"), None
 		for index in range(len(X[0])):
 			for row in X:
+				if(self.criterion=="median"):
+					index = np.random.randint(0,len(X[0]))
 				groups = self.test_split(index, row[index], X, y)
 				if (self.criterion == "mse"):
 					n_score = self.mse(groups)
+				elif (self.criterion == "mae"):
+					n_score = self.mae(groups)
+				elif (self.criterion == "median"):
+					n_score = self.median_split(groups)
 				elif(self.criterion=="gini"):
 					n_score = self.gini_index(groups,class_values)
-				elif(self.criterion=="median"):
-					n_score = self.median_split(groups)
+				elif(self.criterion=="balanced_mse"):
+					n_score = self.balanced_mse(groups)
 				#else error
 				if n_score < b_score:
 					b_index, b_value, b_score, b_groups = index, row[index], n_score, groups

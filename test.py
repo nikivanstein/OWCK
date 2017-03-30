@@ -105,15 +105,25 @@ def runtest(cluster_method='k-mean'):
 
             owck_model = GaussianProcess_extra(regr='constant', corr='matern', theta0=theta0, thetaL=thetaL, thetaU=thetaU, nugget=None, verbose=False, nugget_estim=True, random_start = 100*dim)
             owck_model.fit(d.data[train_index], d.target[train_index])
+            for i in range(1):
+                X_update = get_design_sites(dim, n_update_sample, x_lb, x_ub, 'uniform')
+                Y_update = ackley_arg0(X_update.T)
+                owck_model.fit(X_update,Y_update)
         else:
-            owck_model = OWCK(regr='constant', corr='matern', cluster_method=cluster_method, overlap=0.1, theta0=theta0, thetaL=thetaL, thetaU=thetaU, 
+            if (cluster_method=="tree"):
+                owck_model = OWCK(regr='constant', corr='matern', cluster_method=cluster_method, overlap=0.1, theta0=theta0, thetaL=thetaL, thetaU=thetaU, 
+                              n_cluster=int(n_sample/100), nugget=None, verbose=False,
+                              nugget_estim=True, random_start = 100*dim,
+                              is_parallel=False)
+            else:
+                owck_model = OWCK(regr='constant', corr='matern', cluster_method=cluster_method, overlap=0.1, theta0=theta0, thetaL=thetaL, thetaU=thetaU, 
                               n_cluster=int(n_sample/100), nugget=None, verbose=False,
                               nugget_estim=True, random_start = 100*dim,
                               is_parallel=False)
             owck_model.fit(d.data[train_index], d.target[train_index])
             #update the model with additional data (just testing)
 
-            for i in range(10):
+            for i in range(1):
                 X_update = get_design_sites(dim, n_update_sample, x_lb, x_ub, 'uniform')
                 Y_update = ackley_arg0(X_update.T)
                 owck_model.fit(X_update,Y_update)
